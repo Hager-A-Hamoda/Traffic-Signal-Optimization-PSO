@@ -43,13 +43,18 @@ At the end, the system calculates the total waiting time, which is used later as
 1. Install dependencies:
 ```bash
 pip install -r requirements.txt
+```
 
 2. Run the project:
+```bash
 python main.py
+```
 
 Example Output
+```bash
 Timings: [10, 15, 12]
 Total Waiting Time: 532
+```
 
 ## Notes
 - The simulation is simplified and does not represent real-world traffic perfectly.
