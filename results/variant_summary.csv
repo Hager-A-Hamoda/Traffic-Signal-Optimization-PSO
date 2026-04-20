@@ -1,0 +1,6 @@
+variant,mean_score,std_score,best_score,worst_score,mean_runtime_s
+Constant Inertia (w=0.5),19134.20,411.78,18174.00,19811.00,9.214
+Linear Inertia (0.9 to 0.4),19025.67,406.63,18094.00,19780.00,10.069
+Global Topology,19134.20,411.78,18174.00,19811.00,10.379
+Local Topology (ring),19147.07,406.02,18114.00,20024.00,8.868
+Constriction Factor,19053.63,414.13,18094.00,19842.00,8.914
