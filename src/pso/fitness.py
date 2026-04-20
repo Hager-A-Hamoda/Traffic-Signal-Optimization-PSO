@@ -1,7 +1,7 @@
 from src.simulation.network_builder import build_network
 
 class FitnessEvaluator:
-    def init(self, steps=100):
+    def __init__(self, steps=100):
         self.steps = steps
     
     def evaluate(self, position):
