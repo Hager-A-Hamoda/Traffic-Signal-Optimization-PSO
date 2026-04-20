@@ -5,7 +5,5 @@ from .fitness import FitnessEvaluator
 
 __all__ = [
     "Particle",
-    "Swarm",
-    "PSOOptimizer",
     "FitnessEvaluator"
 ]
