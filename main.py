@@ -24,13 +24,14 @@ def main():
     print(f"\n Score: {score}")
     print("\n--- Running PSO Optimization ---")
     opt = PSOOptimizer(
-        fitness_evaluator=evaluator,
-        num_intersections=3,
-        num_particles=20,
-        max_iterations=50,
-        seed=42
-    )
-    opt.swarm.diversity = "crowding" 
+    fitness_evaluator=evaluator,
+    num_intersections=3,
+    num_particles=20,
+    max_iterations=50,
+    diversity="crowding",
+    seed=42
+   )
+
     result = opt.run()
 
     print(f"\n Best Timings:  {result['best_position'].round(2)}")

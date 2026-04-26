@@ -22,6 +22,8 @@ class PSOOptimizer:
         'constant' or 'linear'  (passed to Swarm).
     topology : str
         'global' or 'local'  (passed to Swarm).
+    diversity : str
+        'none' or 'crowding'  (passed to Swarm).
     w, w_max, w_min : float
         Inertia-weight parameters (passed to Swarm).
     c1, c2 : float
@@ -40,6 +42,7 @@ class PSOOptimizer:
         max_green: float = 60.0,
         inertia_strategy: str = "constant",
         topology: str = "global",
+        diversity: str = "none",              # 'none' | 'crowding'
         w: float = 0.5,
         w_max: float = 0.9,
         w_min: float = 0.4,
@@ -65,6 +68,7 @@ class PSOOptimizer:
             max_green=max_green,
             inertia_strategy=inertia_strategy,
             topology=topology,
+            diversity=diversity,
             w=w,
             w_max=w_max,
             w_min=w_min,
