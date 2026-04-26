@@ -30,6 +30,7 @@ def main():
         max_iterations=50,
         seed=42
     )
+    opt.swarm.diversity = "crowding" 
     result = opt.run()
 
     print(f"\n Best Timings:  {result['best_position'].round(2)}")
