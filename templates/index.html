@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Traffic Signal Optimizer</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root {
+  --bg:#080c10; --surf:#0e1420; --border:#1e2d42;
+  --pso:#38bdf8; --de:#fb923c; --hybrid:#34d399;
+  --red:#f87171; --text:#e2e8f0; --muted:#64748b;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+header{padding:.9rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.8rem;background:linear-gradient(90deg,#080c10,#0d1a2a);flex-shrink:0;}
+.logo{display:grid;grid-template-columns:1fr 1fr;gap:3px;width:26px;height:26px;}
+.logo span{border-radius:2px;}
+.logo span:nth-child(1){background:var(--pso);animation:lp 2s 0s infinite;}
+.logo span:nth-child(2){background:var(--de);animation:lp 2s .3s infinite;}
+.logo span:nth-child(3){background:var(--de);animation:lp 2s .6s infinite;}
+.logo span:nth-child(4){background:var(--hybrid);animation:lp 2s .9s infinite;}
+@keyframes lp{0%,100%{opacity:1}50%{opacity:.3}}
+header h1{font-size:1.05rem;font-weight:800;}
+header h1 span{color:var(--pso);}
+.pill{display:inline-flex;align-items:center;gap:.35rem;padding:.22rem .55rem;border-radius:99px;font-size:.62rem;font-weight:700;font-family:'JetBrains Mono',monospace;background:var(--border);color:var(--muted);}
+.pill.running{background:rgba(56,189,248,.12);color:var(--pso);}
+.pill.done{background:rgba(52,211,153,.12);color:var(--hybrid);}
+.pill .dot{width:5px;height:5px;border-radius:50%;background:currentColor;}
+.pill.running .dot{animation:blink .8s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.layout{display:grid;grid-template-columns:290px 1fr;flex:1;overflow:hidden;}
+.sidebar{border-right:1px solid var(--border);overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:.9rem;}
+.sec-title{font-size:.58rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem;}
+.algo-tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;}
+.algo-tab{padding:.4rem .2rem;border:1px solid var(--border);border-radius:6px;background:var(--surf);cursor:pointer;text-align:center;font-family:'Syne',sans-serif;font-size:.7rem;font-weight:700;color:var(--muted);transition:all .2s;}
+.algo-tab:hover{color:var(--text);border-color:var(--pso);}
+.algo-tab.active[data-algo="pso"]{border-color:var(--pso);color:var(--pso);background:rgba(56,189,248,.08);}
+.algo-tab.active[data-algo="de"]{border-color:var(--de);color:var(--de);background:rgba(251,146,60,.08);}
+.algo-tab.active[data-algo="hybrid"]{border-color:var(--hybrid);color:var(--hybrid);background:rgba(52,211,153,.08);}
+.param-panel{display:none;}
+.param-panel.active{display:block;}
+.param-group{margin-bottom:.65rem;}
+.param-group label{display:flex;justify-content:space-between;font-size:.7rem;color:var(--muted);margin-bottom:.2rem;}
+.param-group label span{font-family:'JetBrains Mono',monospace;color:var(--text);font-size:.66rem;}
+input[type=range]{width:100%;accent-color:var(--pso);cursor:pointer;}
+select{width:100%;padding:.3rem .45rem;background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:.7rem;}
+select:focus{outline:none;border-color:var(--pso);}
+.run-btn{width:100%;padding:.75rem;border:none;border-radius:8px;background:linear-gradient(135deg,var(--pso),#0ea5e9);color:#000;font-family:'Syne',sans-serif;font-size:.82rem;font-weight:800;cursor:pointer;transition:all .2s;}
+.run-btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(56,189,248,.3);}
+.run-btn:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+.main{display:flex;flex-direction:column;overflow:hidden;}
+.networks{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);flex-shrink:0;}
+.net-pane{background:var(--bg);padding:.6rem .9rem;}
+.net-header{display:flex;align-items:center;gap:.5rem;margin-bottom:.35rem;}
+.net-title{font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;}
+.badge{padding:.12rem .45rem;border-radius:99px;font-size:.56rem;font-weight:700;}
+.badge-b{background:rgba(248,113,113,.15);color:var(--red);border:1px solid rgba(248,113,113,.3);}
+.badge-a{background:rgba(52,211,153,.15);color:var(--hybrid);border:1px solid rgba(52,211,153,.3);}
+canvas.net{display:block;width:100%;border-radius:7px;background:#0a1118;}
+.net-stats{display:flex;gap:.6rem;margin-top:.35rem;}
+.ns{flex:1;text-align:center;}
+.ns .l{font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;}
+.ns .v{font-family:'JetBrains Mono',monospace;font-size:.85rem;font-weight:700;}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);flex:1;min-height:0;}
+.chart-pane{background:var(--bg);padding:.65rem .9rem;display:flex;flex-direction:column;min-height:0;}
+.chart-pane canvas{flex:1;min-height:0;}
+.results-bar{border-top:1px solid var(--border);padding:.55rem 1.1rem;display:grid;grid-template-columns:repeat(4,1fr);gap:.7rem;background:var(--surf);flex-shrink:0;}
+.ri{text-align:center;}
+.ri .l{font-size:.56rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);}
+.ri .v{font-family:'JetBrains Mono',monospace;font-size:.95rem;font-weight:700;margin-top:.1rem;}
+.green{color:var(--hybrid);} .blue{color:var(--pso);} .orange{color:var(--de);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span></span><span></span><span></span><span></span></div>
+  <h1>Traffic Signal <span>Optimizer</span></h1>
+  <div style="margin-left:auto;">
+    <div class="pill" id="statusPill"><span class="dot"></span><span id="statusTxt">Ready</span></div>
+  </div>
+</header>
+
+<div class="layout">
+<aside class="sidebar">
+  <div>
+    <div class="sec-title">Algorithm</div>
+    <div class="algo-tabs">
+      <button class="algo-tab active" data-algo="pso"    onclick="switchAlgo('pso')">PSO</button>
+      <button class="algo-tab"        data-algo="de"     onclick="switchAlgo('de')">DE</button>
+      <button class="algo-tab"        data-algo="hybrid" onclick="switchAlgo('hybrid')">Hybrid</button>
+    </div>
+  </div>
+
+  <div class="param-panel active" id="panel-pso">
+    <div class="sec-title">PSO Parameters</div>
+    <div class="param-group"><label>Particles <span id="vpp">20</span></label>
+      <input type="range" id="pso-p" min="5" max="50" value="20" oninput="document.getElementById('vpp').textContent=this.value"></div>
+    <div class="param-group"><label>Iterations <span id="vpi">50</span></label>
+      <input type="range" id="pso-i" min="10" max="150" value="50" oninput="document.getElementById('vpi').textContent=this.value"></div>
+    <div class="param-group"><label>Inertia Strategy</label>
+      <select id="pso-inertia"><option value="linear">Linear (0.9→0.4)</option><option value="constant">Constant (w=0.5)</option></select></div>
+    <div class="param-group"><label>Topology</label>
+      <select id="pso-topology"><option value="global">Global Best</option><option value="local">Local Best (ring)</option></select></div>
+    <div class="param-group"><label>c1 — Cognitive <span id="vc1">1.5</span></label>
+      <input type="range" id="pso-c1" min="0.5" max="3" step="0.1" value="1.5" oninput="document.getElementById('vc1').textContent=parseFloat(this.value).toFixed(1)"></div>
+    <div class="param-group"><label>c2 — Social <span id="vc2">1.5</span></label>
+      <input type="range" id="pso-c2" min="0.5" max="3" step="0.1" value="1.5" oninput="document.getElementById('vc2').textContent=parseFloat(this.value).toFixed(1)"></div>
+  </div>
+
+  <div class="param-panel" id="panel-de">
+    <div class="sec-title">DE Parameters</div>
+    <div class="param-group"><label>Population <span id="vdp">20</span></label>
+      <input type="range" id="de-p" min="5" max="50" value="20" oninput="document.getElementById('vdp').textContent=this.value"></div>
+    <div class="param-group"><label>Iterations <span id="vdi">50</span></label>
+      <input type="range" id="de-i" min="10" max="150" value="50" oninput="document.getElementById('vdi').textContent=this.value"></div>
+    <div class="param-group"><label>F — Mutation <span id="vf">0.80</span></label>
+      <input type="range" id="de-f" min="0.1" max="1.5" step="0.05" value="0.8" oninput="document.getElementById('vf').textContent=parseFloat(this.value).toFixed(2)"></div>
+    <div class="param-group"><label>CR — Crossover <span id="vcr">0.90</span></label>
+      <input type="range" id="de-cr" min="0.1" max="1.0" step="0.05" value="0.9" oninput="document.getElementById('vcr').textContent=parseFloat(this.value).toFixed(2)"></div>
+    <div class="param-group"><label>Mutation Strategy</label>
+      <select id="de-mutation"><option value="rand1">rand/1</option><option value="best1">best/1</option></select></div>
+    <div class="param-group"><label>Crossover Strategy</label>
+      <select id="de-crossover"><option value="binomial">Binomial</option><option value="exponential">Exponential</option></select></div>
+    <div class="param-group"><label>Representation</label>
+      <select id="de-repr"><option value="continuous">Continuous</option><option value="discrete">Discrete</option></select></div>
+  </div>
+
+  <div class="param-panel" id="panel-hybrid">
+    <div class="sec-title">Hybrid PSO-DE Parameters</div>
+    <div class="param-group"><label>Particles <span id="vhp">20</span></label>
+      <input type="range" id="h-p" min="5" max="50" value="20" oninput="document.getElementById('vhp').textContent=this.value"></div>
+    <div class="param-group"><label>Iterations <span id="vhi">50</span></label>
+      <input type="range" id="h-i" min="10" max="150" value="50" oninput="document.getElementById('vhi').textContent=this.value"></div>
+    <div class="param-group"><label>F — DE Mutation <span id="vhf">0.60</span></label>
+      <input type="range" id="h-f" min="0.1" max="1.5" step="0.05" value="0.6" oninput="document.getElementById('vhf').textContent=parseFloat(this.value).toFixed(2)"></div>
+    <div class="param-group"><label>CR — DE Crossover <span id="vhcr">0.80</span></label>
+      <input type="range" id="h-cr" min="0.1" max="1.0" step="0.05" value="0.8" oninput="document.getElementById('vhcr').textContent=parseFloat(this.value).toFixed(2)"></div>
+    <div class="param-group"><label>w — PSO Guidance <span id="vhw">0.40</span></label>
+      <input type="range" id="h-w" min="0.1" max="1.0" step="0.05" value="0.4" oninput="document.getElementById('vhw').textContent=parseFloat(this.value).toFixed(2)"></div>
+  </div>
+
+  <button class="run-btn" id="runBtn" onclick="runOpt()">▶ Run Optimization</button>
+</aside>
+
+<main class="main">
+  <!-- Before | After -->
+  <div class="networks">
+    <div class="net-pane">
+      <div class="net-header">
+        <span class="net-title" style="color:var(--red)">Before Optimization</span>
+        <span class="badge badge-b">fixed 20s each</span>
+      </div>
+      <canvas class="net" id="cvBefore" height="120"></canvas>
+      <div class="net-stats">
+        <div class="ns"><div class="l">Waiting</div><div class="v" id="wb" style="color:var(--red)">0</div></div>
+        <div class="ns"><div class="l">Green Time</div><div class="v" style="color:var(--muted)">20 / 20 / 20</div></div>
+        <div class="ns"><div class="l">Score</div><div class="v" id="sb" style="color:var(--muted)">—</div></div>
+      </div>
+    </div>
+    <div class="net-pane">
+      <div class="net-header">
+        <span class="net-title" style="color:var(--hybrid)">After Optimization</span>
+        <span class="badge badge-a">optimized timings</span>
+      </div>
+      <canvas class="net" id="cvAfter" height="120"></canvas>
+      <div class="net-stats">
+        <div class="ns"><div class="l">Waiting</div><div class="v" id="wa" style="color:var(--hybrid)">0</div></div>
+        <div class="ns"><div class="l">Green Time</div><div class="v green" id="ta">—</div></div>
+        <div class="ns"><div class="l">Score</div><div class="v green" id="sa">—</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts">
+    <div class="chart-pane">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.35rem;">
+        <div class="sec-title" style="margin:0">Convergence Curve</div>
+        <span id="liveScore" style="font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--pso)">—</span>
+      </div>
+      <canvas id="convChart"></canvas>
+    </div>
+    <div class="chart-pane">
+      <div class="sec-title" style="margin-bottom:.35rem;">Before vs After</div>
+      <canvas id="compChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="results-bar">
+    <div class="ri"><div class="l">Algorithm</div><div class="v blue" id="r-algo">—</div></div>
+    <div class="ri"><div class="l">Best Score</div><div class="v green" id="r-best">—</div></div>
+    <div class="ri"><div class="l">Improvement</div><div class="v green" id="r-impr">—</div></div>
+    <div class="ri"><div class="l">Best Timings</div><div class="v blue" id="r-tim" style="font-size:.7rem">—</div></div>
+  </div>
+</main>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════
+//  TRAFFIC SIMULATION
+// ══════════════════════════════════════════════════
+class TrafficSim {
+  constructor(id, timings, movColor) {
+    this.cv  = document.getElementById(id);
+    this.ctx = this.cv.getContext('2d');
+    this.timings  = timings.slice();
+    this.movColor = movColor;
+    this.t = 0;
+    this.waitCount = 0;
+    this._resize();
+    this.cars = this._spawnCars();
+    this.ints = [
+      { x: this.W * 0.22 },
+      { x: this.W * 0.50 },
+      { x: this.W * 0.78 },
+    ];
+  }
+
+  _resize() {
+    this.W = this.cv.parentElement.clientWidth - 18 || 400;
+    this.H = 120;
+    this.cv.width  = this.W;
+    this.cv.height = this.H;
+  }
+
+  _spawnCars() {
+    const cars = [];
+    for (let i = 0; i < 14; i++) {
+      cars.push({
+        x:   Math.random() * this.W,
+        y:   this.H / 2 + (Math.random() - .5) * 8,
+        spd: 1.1 + Math.random() * 0.8,
+        w:   false,
+      });
+    }
+    return cars;
+  }
+
+  isGreen(idx) {
+    const off = idx * 18;
+    return ((this.t + off) % 80) < this.timings[idx];
+  }
+
+  update() {
+    this.t += 0.18;
+    this.waitCount = 0;
+    for (const c of this.cars) {
+      c.w = false;
+      for (let i = 0; i < 3; i++) {
+        const ix = this.ints[i].x;
+        if (!this.isGreen(i) && c.x < ix + 22 && c.x > ix - 58) {
+          c.w = true; break;
+        }
+      }
+      if (!c.w) {
+        c.x += c.spd;
+        if (c.x > this.W + 20) { c.x = -20; c.y = this.H/2 + (Math.random()-.5)*10; }
+      } else { this.waitCount++; }
+    }
+  }
+
+  draw() {
+    const { ctx, W, H } = this;
+    ctx.clearRect(0, 0, W, H);
+
+    // road
+    ctx.fillStyle = '#111d2b';
+    ctx.fillRect(0, H/2 - 18, W, 36);
+
+    // center dash
+    ctx.setLineDash([12, 10]);
+    ctx.strokeStyle = '#ffffff12';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // intersections
+    for (let i = 0; i < 3; i++) {
+      const x = this.ints[i].x;
+      const green = this.isGreen(i);
+      const lc = green ? '#34d399' : '#f87171';
+
+      ctx.fillStyle = '#162030';
+      ctx.beginPath();
+      ctx.roundRect(x - 19, H/2 - 19, 38, 38, 5);
+      ctx.fill();
+
+      ctx.shadowColor = lc;
+      ctx.shadowBlur  = green ? 18 : 10;
+      ctx.fillStyle   = lc;
+      ctx.beginPath(); ctx.arc(x, H/2 - 6, 7, 0, Math.PI*2); ctx.fill();
+      ctx.shadowBlur  = 0;
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = 'bold 9px JetBrains Mono,monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(this.timings[i].toFixed(0)+'s', x, H/2 + 12);
+
+      ctx.fillStyle = '#475569';
+      ctx.font = '7px Syne,sans-serif';
+      ctx.fillText('INT '+(i+1), x, H/2 + 22);
+    }
+
+    // cars
+    for (const c of this.cars) {
+      const col = c.w ? '#f87171' : this.movColor;
+      ctx.shadowColor = col; ctx.shadowBlur = c.w ? 8 : 3;
+      ctx.fillStyle   = col;
+      ctx.beginPath(); ctx.roundRect(c.x-9, c.y-5, 18, 10, 3); ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  setTimings(t) { this.timings = t.map(v => Math.max(5, Math.min(60, v))); }
+  loop() { this.update(); this.draw(); this._raf = requestAnimationFrame(() => this.loop()); }
+  stop() { cancelAnimationFrame(this._raf); }
+}
+
+// ══════════════════════════════════════════════════
+//  CHARTS
+// ══════════════════════════════════════════════════
+const COLORS = { pso:'#38bdf8', de:'#fb923c', hybrid:'#34d399' };
+let currentAlgo = 'pso';
+let convChart, compChart, simB, simA;
+
+function initCharts() {
+  convChart = new Chart(document.getElementById('convChart'), {
+    type: 'line',
+    data: { labels:[], datasets:[{
+      data:[], borderColor:'#38bdf8', backgroundColor:'rgba(56,189,248,.07)',
+      fill:true, tension:.35, pointRadius:0, borderWidth:2
+    }]},
+    options: {
+      animation:false, responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{
+        x:{ ticks:{ color:'#64748b', font:{ family:'JetBrains Mono', size:9 }}, grid:{ color:'#1e2d42' }},
+        y:{ ticks:{ color:'#64748b', font:{ family:'JetBrains Mono', size:9 }}, grid:{ color:'#1e2d42' }}
+      }
+    }
+  });
+
+  compChart = new Chart(document.getElementById('compChart'), {
+    type: 'bar',
+    data:{
+      labels:['Before (fixed)', 'After (optimized)'],
+      datasets:[{ data:[0,0],
+        backgroundColor:['rgba(248,113,113,.2)','rgba(52,211,153,.2)'],
+        borderColor:['#f87171','#34d399'], borderWidth:2, borderRadius:6
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{
+        x:{ ticks:{ color:'#64748b', font:{ size:9 }}, grid:{ color:'#1e2d42' }},
+        y:{ ticks:{ color:'#64748b', font:{ family:'JetBrains Mono', size:9 }}, grid:{ color:'#1e2d42' }}
+      }
+    }
+  });
+}
+
+function initSims() {
+  simB = new TrafficSim('cvBefore', [20,20,20], '#94a3b8');
+  simA = new TrafficSim('cvAfter',  [20,20,20], '#38bdf8');
+  simB.loop(); simA.loop();
+  setInterval(() => {
+    document.getElementById('wb').textContent = simB.waitCount;
+    document.getElementById('wa').textContent = simA.waitCount;
+  }, 250);
+}
+
+// ══════════════════════════════════════════════════
+//  UI HELPERS
+// ══════════════════════════════════════════════════
+function switchAlgo(algo) {
+  currentAlgo = algo;
+  document.querySelectorAll('.algo-tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`[data-algo="${algo}"]`).classList.add('active');
+  document.querySelectorAll('.param-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-'+algo).classList.add('active');
+  if (convChart) {
+    convChart.data.datasets[0].borderColor     = COLORS[algo];
+    convChart.data.datasets[0].backgroundColor = COLORS[algo]+'12';
+    convChart.update();
+  }
+}
+
+function getParams() {
+  const g = id => parseFloat(document.getElementById(id)?.value ?? 0);
+  const s = id => document.getElementById(id)?.value ?? '';
+  const gi = id => parseInt(document.getElementById(id)?.value ?? 0);
+  if (currentAlgo === 'pso') return {
+    num_particles: gi('pso-p'), max_iterations: gi('pso-i'),
+    inertia_strategy: s('pso-inertia'), topology: s('pso-topology'),
+    c1: g('pso-c1'), c2: g('pso-c2'),
+  };
+  if (currentAlgo === 'de') return {
+    num_particles: gi('de-p'), max_iterations: gi('de-i'),
+    F: g('de-f'), CR: g('de-cr'),
+    mutation_strategy: s('de-mutation'), crossover_strategy: s('de-crossover'),
+    representation: s('de-repr'),
+  };
+  return {
+    num_particles: gi('h-p'), max_iterations: gi('h-i'),
+    F: g('h-f'), CR: g('h-cr'), w: g('h-w'),
+  };
+}
+
+function setStatus(state, txt) {
+  document.getElementById('statusPill').className = 'pill ' + state;
+  document.getElementById('statusTxt').textContent = txt;
+}
+
+// ══════════════════════════════════════════════════
+//  RUN
+// ══════════════════════════════════════════════════
+async function runOpt() {
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true; btn.textContent = '⏳ Running...';
+  setStatus('running', 'Running…');
+
+  convChart.data.labels = [];
+  convChart.data.datasets[0].data = [];
+  convChart.update();
+  simA.setTimings([20,20,20]);
+
+  const res  = await fetch('/run', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ algo: currentAlgo, params: getParams() })
+  });
+  const { job_id } = await res.json();
+
+  const es = new EventSource(`/stream/${job_id}`);
+  es.onmessage = async (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.error) {
+      setStatus('idle','Error'); btn.disabled=false; btn.textContent='▶ Run Optimization';
+      es.close(); return;
+    }
+    if (msg.iter !== undefined) {
+      convChart.data.labels.push(msg.iter);
+      convChart.data.datasets[0].data.push(msg.score);
+      convChart.update('none');
+      document.getElementById('liveScore').textContent = Math.round(msg.score).toLocaleString();
+    }
+    if (msg.done) {
+      es.close();
+      const data = await (await fetch(`/results/${job_id}`)).json();
+
+      // update after-sim
+      simA.setTimings(data.best_position);
+      document.getElementById('ta').textContent = data.best_position.map(v=>v.toFixed(0)+'s').join(' / ');
+      document.getElementById('sb').textContent = Math.round(data.baseline_score).toLocaleString();
+      document.getElementById('sa').textContent = Math.round(data.best_score).toLocaleString();
+
+      // comparison chart
+      compChart.data.datasets[0].data = [data.baseline_score, data.best_score];
+      compChart.update();
+
+      // results bar
+      document.getElementById('r-algo').textContent = currentAlgo.toUpperCase();
+      document.getElementById('r-best').textContent = Math.round(data.best_score).toLocaleString();
+      document.getElementById('r-impr').textContent = data.improvement + '%';
+      document.getElementById('r-tim').textContent  = data.best_position.map(v=>v.toFixed(1)).join(' / ');
+
+      setStatus('done','Done ✓');
+      btn.disabled=false; btn.textContent='▶ Run Again';
+    }
+  };
+}
+
+// ══════════════════════════════════════════════════
+//  BOOT
+// ══════════════════════════════════════════════════
+initCharts();
+window.addEventListener('load', initSims);
+</script>
+</body>
+</html>

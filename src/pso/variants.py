@@ -18,6 +18,8 @@ returns a configured `PSOOptimizer` ready to call `.run()`.
 import numpy as np
 from .optimizer import PSOOptimizer
 from .fitness import FitnessEvaluator
+from src.DE.de import DEOptimizer
+from src.hypered.hyp import HybridPSODE
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Variant registry
@@ -90,44 +92,90 @@ VARIANTS = {
         "topology": "global",
     },
 }
+DE_VARIANTS = {
+    "de_rand1_binomial": {
+        "representation": "continuous",
+        "init_strategy": "random",
+        "mutation_strategy": "rand1",
+        "crossover_strategy": "binomial",
+        "parent_selection": "random",
+    },
+    "de_best1_binomial": {
+        "representation": "continuous",
+        "init_strategy": "random",
+        "mutation_strategy": "best1",
+        "crossover_strategy": "binomial",
+        "parent_selection": "random",
+    },
+    "de_rand1_exponential": {
+        "representation": "continuous",
+        "init_strategy": "random",
+        "mutation_strategy": "rand1",
+        "crossover_strategy": "exponential",
+        "parent_selection": "random",
+    },
+    "de_rand1_discrete": {
+        "representation": "discrete",
+        "init_strategy": "uniform",
+        "mutation_strategy": "rand1",
+        "crossover_strategy": "binomial",
+        "parent_selection": "tournament",
+    },
+}
 
+HYBRID_VARIANTS = {
+    "hybrid_pso_de_default": {
+        "F":  0.8,
+        "CR": 0.9,
+        "w":  0.5,
+    },
+    "hybrid_pso_de_tuned": {
+        "F":  0.6,
+        "CR": 0.8,
+        "w":  0.4,
+    },
+}
 
-def build_variant(
-    name: str,
-    fitness_evaluator=None,
-    seed: int | None = None,
-    **overrides,
-) -> PSOOptimizer:
-    """
-    Build a PSOOptimizer pre-configured for the named variant.
-
-    Parameters
-    ----------
-    name : str
-        Key from VARIANTS dict.
-    fitness_evaluator : FitnessEvaluator | None
-        Shared evaluator (creates one if not supplied).
-    seed : int | None
-        Random seed.
-    **overrides
-        Any additional kwargs forwarded to PSOOptimizer (override variant defaults).
-
-    Returns
-    -------
-    PSOOptimizer
-    """
-    if name not in VARIANTS:
-        raise ValueError(
-            f"Unknown variant '{name}'. "
-            f"Available: {list(VARIANTS.keys())}"
-        )
-
+def build_variant(name, fitness_evaluator=None, seed=None, **overrides):
     if fitness_evaluator is None:
         fitness_evaluator = FitnessEvaluator()
 
+    if name in HYBRID_VARIANTS:
+        kwargs = {
+            "num_intersections": 3,
+            "num_particles":     30,
+            "max_iterations":    100,
+            "min_green":         5.0,
+            "max_green":         60.0,
+            "seed":              seed,
+            **HYBRID_VARIANTS[name],
+            **overrides,
+        }
+        return HybridPSODE(fitness_evaluator=fitness_evaluator, **kwargs)
+
+    # لو الـ variant بتاع DE
+    if name in DE_VARIANTS:
+        kwargs = {
+            "num_intersections": 3,
+            "population_size": 30,
+            "max_iterations": 100,
+            "min_green": 5.0,
+            "max_green": 60.0,
+            "seed": seed,
+            **DE_VARIANTS[name],
+            **overrides,
+        }
+        return DEOptimizer(fitness_evaluator=fitness_evaluator, **kwargs)
+
+    # لو الـ variant بتاع PSO
+    if name not in VARIANTS:
+        raise ValueError(
+            f"Unknown variant '{name}'. "
+            f"Available: {list(VARIANTS.keys()) + list(DE_VARIANTS.keys())}"
+        )
+
     kwargs = {**VARIANT_DEFAULTS, **VARIANTS[name], **overrides, "seed": seed}
 
-    # Constriction factor needs a patched Swarm — we handle it via a subclass
     if kwargs.get("inertia_strategy") == "constriction":
         return _build_constriction_optimizer(fitness_evaluator, kwargs)
 

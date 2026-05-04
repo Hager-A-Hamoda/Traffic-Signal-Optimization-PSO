@@ -7,10 +7,8 @@ import numpy as np
 from .experiment import Experiment
 
 
-# ---------------------------------------------------------------------------
-# Standard experiment configurations
-# ---------------------------------------------------------------------------
 STANDARD_CONFIGS = [
+    # PSO Variants
     {
         "name": "Baseline (Constant Inertia, Global)",
         "variant": "constant_inertia",
@@ -41,8 +39,38 @@ STANDARD_CONFIGS = [
         "variant": "constriction",
         "params": {"num_particles": 20, "max_iterations": 50},
     },
+    # DE Variants
+    {
+        "name": "DE - rand1 Binomial Continuous",
+        "variant": "de_rand1_binomial",
+        "params": {"population_size": 20, "max_iterations": 50},
+    },
+    {
+        "name": "DE - best1 Binomial Continuous",
+        "variant": "de_best1_binomial",
+        "params": {"population_size": 20, "max_iterations": 50},
+    },
+    {
+        "name": "DE - rand1 Exponential Continuous",
+        "variant": "de_rand1_exponential",
+        "params": {"population_size": 20, "max_iterations": 50},
+    },
+    {
+        "name": "DE - rand1 Binomial Discrete",
+        "variant": "de_rand1_discrete",
+        "params": {"population_size": 20, "max_iterations": 50},
+    },
+    {
+        "name": "Hybrid PSO-DE (Default)",
+        "variant": "hybrid_pso_de_default",
+        "params": {"num_particles": 20, "max_iterations": 50},
+    },
+    {
+        "name": "Hybrid PSO-DE (Tuned)",
+        "variant": "hybrid_pso_de_tuned",
+        "params": {"num_particles": 20, "max_iterations": 50},
+    },
 ]
-
 
 # ---------------------------------------------------------------------------
 # ExperimentRunner
