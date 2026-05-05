@@ -5,6 +5,7 @@ from src.pso.fitness import FitnessEvaluator
 from src.pso.variants import build_variant
 
 
+
 class Experiment:
     def __init__(
         self,
@@ -59,8 +60,10 @@ class Experiment:
             runtime = time.time() - t0
 
             num_intersections = len(result["best_position"])
+            num_stops = num_intersections
             avg_queue_length = float(result["best_score"] / max(num_intersections, 1))
-
+            avg_waiting_time = avg_queue_length / max(num_intersections, 1)
+            
             run_record = {
                 "run": run_idx + 1,
                 "seed": int(seed),
@@ -69,6 +72,8 @@ class Experiment:
                 "history": [float(v) for v in result["history"]],
                 "runtime_s": round(runtime, 3),
                 "avg_queue_length": round(avg_queue_length, 3),
+                "num_stops": num_stops,
+                "avg_waiting_time": avg_waiting_time,
             }
             self.results.append(run_record)
 
@@ -95,6 +100,9 @@ class Experiment:
 
         queue_lengths = [r["avg_queue_length"] for r in self.results]
 
+        waiting_times = [r["avg_waiting_time"] for r in self.results]
+        num_stops_list = [r["num_stops"] for r in self.results]
+
         return {
             "experiment_name": self.name,
             "variant": self.variant,
@@ -112,9 +120,14 @@ class Experiment:
             # runtime
             "avg_runtime_s": float(np.mean(runtimes)),
             "total_runtime_s": float(np.sum(runtimes)),
-            # queue length metric
+            # queue length metric (existing)
             "avg_queue_length": round(float(np.mean(queue_lengths)), 3),
             "std_queue_length": round(float(np.std(queue_lengths)), 3),
+            # NEW: average waiting time
+            "avg_waiting_time": round(float(np.mean(waiting_times)), 3),
+            "std_waiting_time": round(float(np.std(waiting_times)), 3),
+            # NEW: number of stops (intersections)
+            "num_stops": int(np.mean(num_stops_list)),
             # raw per-run records
             "runs": self.results,
         }
@@ -128,6 +141,8 @@ class Experiment:
         print(f"  Worst : {s['worst_score']:.0f}")
         print(f"  Time  : {s['avg_runtime_s']:.2f}s / run")
         print(f"  Queue : {s['avg_queue_length']:.3f} +/- {s['std_queue_length']:.3f} (avg queue length)")
+        print(f"  Wait  : {s['avg_waiting_time']:.3f} +/- {s['std_waiting_time']:.3f} (avg waiting time)")
+        print(f"  Stops : {s['num_stops']} intersections")
 
     @property  # allows access via exp.summary instead of exp.summary() to avoid confusion with the summary dict and error if called before run()
     def summary(self) -> dict:  

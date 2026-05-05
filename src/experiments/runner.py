@@ -165,6 +165,8 @@ class ExperimentRunner:
             "best_score", "avg_score", "std_score",
             "median_score", "worst_score",
             "avg_queue_length", "std_queue_length",
+            "avg_waiting_time", "std_waiting_time",
+            "num_stops",
             "avg_runtime_s", "total_runtime_s",
         ]
         with open(path, "w", newline="") as f:
