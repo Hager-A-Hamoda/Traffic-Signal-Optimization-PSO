@@ -4,13 +4,19 @@ class TrafficNetwork:
 
     def reset(self):
         for i in self.intersections:
-            i.queue = 0
+            i.queue_main = 0
+            i.queue_side = 0
+            i.time = 0
             i.traffic_light.current_time = 0
 
     def simulate(self, timings, steps=100):
         # set timings
         for i, t in enumerate(timings):
-            self.intersections[i].traffic_light.green_time = t
+            tl = self.intersections[i].traffic_light
+            cycle = tl.green_main + tl.green_side  # fixed
+            t = max(1, min(t, cycle - 1))
+            tl.green_main = t
+            tl.green_side = cycle - t
 
         total_waiting_time = 0
         queue_history = []  # per-step metrics

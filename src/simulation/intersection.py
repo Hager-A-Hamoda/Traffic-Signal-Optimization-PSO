@@ -69,15 +69,12 @@ class Intersection:
             for r in self.main_outgoing:
                 r.add_cars(to_main // max(1, len(self.main_outgoing)))
 
-            for r in self.side_outgoing:
-                r.add_cars(to_side // max(1, len(self.side_outgoing)))
-
         else:  # side phase
             passed = min(self.queue_side, capacity)
             self.queue_side -= passed
-
+        
             for r in self.side_outgoing:
-                r.add_cars(passed // max(1, len(self.side_outgoing)))
+                r.add_cars(to_side // max(1, len(self.side_outgoing)))
 
         self.traffic_light.step()
 
