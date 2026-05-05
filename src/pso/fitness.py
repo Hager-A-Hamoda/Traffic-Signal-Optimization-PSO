@@ -9,6 +9,6 @@ class FitnessEvaluator:
         network = build_network()
         
         # بنشغل المحاكاة بالتوقيتات دي
-        score = network.simulate(position, steps=self.steps)
+        score = network.simulate(position, steps=self.steps)["avg_waiting_time"]
         
         return score
