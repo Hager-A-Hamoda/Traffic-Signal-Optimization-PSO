@@ -1,12 +1,17 @@
 class TrafficLight:
-    def __init__(self, green_time, red_time):
-        self.green_time = green_time
-        self.red_time = red_time
+    def __init__(self, green_main, green_side):
+        self.green_main = green_main
+        self.green_side = green_side
         self.current_time = 0
 
     def step(self):
         self.current_time += 1
 
-    def is_green(self):
-        cycle = self.green_time + self.red_time
-        return (self.current_time % cycle) < self.green_time 
+    def get_phase(self):
+        cycle = self.green_main + self.green_side
+        t = self.current_time % cycle
+
+        if t < self.green_main:
+            return "main"
+        else:
+            return "side"

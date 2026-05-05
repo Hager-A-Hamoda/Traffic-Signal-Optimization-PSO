@@ -1,5 +1,5 @@
 """
-Traffic Signal Optimization — Flask GUI
+Traffic Signal Optimization — Flask GUI 
 Run: python app.py
 """
 
@@ -18,7 +18,6 @@ results_store = {}
 
 
 def run_optimization(job_id, algo, params):
-    """Run optimization in background thread, stream progress via queue."""
     q = progress_queues[job_id]
 
     try:
@@ -26,9 +25,6 @@ def run_optimization(job_id, algo, params):
         evaluator = FitnessEvaluator(steps=params.get("steps", 100))
 
         num_intersections = 3
-        history = []
-        best_position = None
-        best_score = float("inf")
 
         if algo == "pso":
             from src.pso.optimizer import PSOOptimizer
@@ -37,14 +33,9 @@ def run_optimization(job_id, algo, params):
                 num_intersections=num_intersections,
                 num_particles=params.get("num_particles", 20),
                 max_iterations=params.get("max_iterations", 50),
-                inertia_strategy=params.get("inertia_strategy", "linear"),
-                topology=params.get("topology", "global"),
                 w=params.get("w", 0.5),
-                w_max=params.get("w_max", 0.9),
-                w_min=params.get("w_min", 0.4),
                 c1=params.get("c1", 1.5),
                 c2=params.get("c2", 1.5),
-                seed=params.get("seed", 42),
             )
 
         elif algo == "de":
@@ -56,12 +47,6 @@ def run_optimization(job_id, algo, params):
                 max_iterations=params.get("max_iterations", 50),
                 F=params.get("F", 0.8),
                 CR=params.get("CR", 0.9),
-                mutation_strategy=params.get("mutation_strategy", "rand1"),
-                crossover_strategy=params.get("crossover_strategy", "binomial"),
-                representation=params.get("representation", "continuous"),
-                init_strategy=params.get("init_strategy", "random"),
-                parent_selection=params.get("parent_selection", "random"),
-                seed=params.get("seed", 42),
             )
 
         elif algo == "hybrid":
@@ -71,21 +56,18 @@ def run_optimization(job_id, algo, params):
                 num_intersections=num_intersections,
                 num_particles=params.get("num_particles", 20),
                 max_iterations=params.get("max_iterations", 50),
-                F=params.get("F", 0.6),
-                CR=params.get("CR", 0.8),
-                w=params.get("w", 0.4),
-                seed=params.get("seed", 42),
             )
 
-        # Run optimizer then stream history
         result = opt.run()
-        for i, score in enumerate(result["history"]):
-            q.put({"iter": i, "score": float(score), "total": len(result["history"])})
 
-        # Baseline score (fixed timings [20,20,20])
+        for i, score in enumerate(result["history"]):
+            q.put({"iter": i, "score": float(score)})
+
+        # baseline
         from src.simulation.network_builder import build_network
         net = build_network()
         net.reset()
+
         baseline = net.simulate([20, 20, 20])
 
         improvement = (baseline - result["best_score"]) / baseline * 100
@@ -132,7 +114,9 @@ def stream(job_id):
         if job_id not in progress_queues:
             yield f"data: {json.dumps({'error': 'job not found'})}\n\n"
             return
+
         q = progress_queues[job_id]
+
         while True:
             try:
                 msg = q.get(timeout=30)
@@ -143,6 +127,29 @@ def stream(job_id):
                 yield f"data: {json.dumps({'ping': True})}\n\n"
 
     return Response(generate(), mimetype="text/event-stream")
+
+
+# network structure for GUI
+@app.route("/network")
+def get_network():
+    from src.simulation.network_builder import build_network
+
+    net = build_network()
+
+    data = []
+
+    for i, inter in enumerate(net.intersections):
+        data.append({
+            "id": i,
+
+            "main_in": len(getattr(inter, "main_incoming", [])),
+            "side_in": len(getattr(inter, "side_incoming", [])),
+
+            "main_out": len(getattr(inter, "main_outgoing", [])),
+            "side_out": len(getattr(inter, "side_outgoing", [])),
+        })
+
+    return jsonify(data)
 
 
 @app.route("/results/<job_id>")
