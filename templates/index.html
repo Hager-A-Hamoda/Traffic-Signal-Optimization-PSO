@@ -63,9 +63,9 @@ canvas.net{display:block;width:100%;border-radius:7px;background:#0a1118;}
 .ns{flex:1;text-align:center;}
 .ns .l{font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;}
 .ns .v{font-family:'JetBrains Mono',monospace;font-size:.85rem;font-weight:700;}
-.charts{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);flex:1;min-height:0;}
-.chart-pane{background:var(--bg);padding:.65rem .9rem;display:flex;flex-direction:column;min-height:0;}
-.chart-pane canvas{flex:1;min-height:0;}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);flex:1;min-height:0;overflow:hidden;}
+.chart-pane{background:var(--bg);padding:.65rem .9rem;display:flex;flex-direction:column;min-height:0;overflow:hidden;}
+.chart-pane canvas{flex:1;min-height:0;max-height:100%;width:100% !important;}
 .results-bar{border-top:1px solid var(--border);padding:.55rem 1.1rem;display:grid;grid-template-columns:repeat(4,1fr);gap:.7rem;background:var(--surf);flex-shrink:0;}
 .ri{text-align:center;}
 .ri .l{font-size:.56rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);}
@@ -211,16 +211,13 @@ class TrafficSim {
     this.movColor = movColor;
     this.t = 0;
     this.waitCount = 0;
-
     this._resize();
-
+    this.cars = this._spawnCars();
     this.ints = [
       { x: this.W * 0.22 },
       { x: this.W * 0.50 },
       { x: this.W * 0.78 },
     ];
-
-    this.cars = this._spawnCars();
   }
 
   _resize() {
@@ -230,198 +227,99 @@ class TrafficSim {
     this.cv.height = this.H;
   }
 
-  // Spawn Cars
   _spawnCars() {
     const cars = [];
-
-    // Main cars
     for (let i = 0; i < 14; i++) {
       cars.push({
-        type: 'main',
-        x: Math.random() * this.W,
-        y: this.H / 2 + (Math.random() - .5) * 8,
-        spd: 1 + Math.random(),
-        w: false,
+        x:   Math.random() * this.W,
+        y:   this.H / 2 + (Math.random() - .5) * 8,
+        spd: 1.1 + Math.random() * 0.8,
+        w:   false,
       });
     }
-
-    // Side cars (For each intersection)
-    for (let i = 0; i < 3; i++) {
-      cars.push({
-        type: 'side',
-        lane: i,
-        x: this.ints[i].x,
-        y: -20,
-        spd: 0.8 + Math.random(),
-        w: false,
-      });
-    }
-
     return cars;
   }
 
-  // Phase System
-  getPhase(i) {
-    const cycle = this.timings[i] * 2; // main + side
-    const t = (this.t + i * 10) % cycle;
-
-    if (t < this.timings[i]) return "main";
-    else return "side";
+  isGreen(idx) {
+    const off = idx * 18;
+    return ((this.t + off) % 80) < this.timings[idx];
   }
 
-  // Update
   update() {
-    this.t += 0.2;
+    this.t += 0.18;
     this.waitCount = 0;
-
     for (const c of this.cars) {
       c.w = false;
-
-      if (c.type === "main") {
-
-        for (let i = 0; i < 3; i++) {
-          const ix = this.ints[i].x;
-          const stopLine = ix - 45; 
-
-          if (
-            this.getPhase(i) !== "main" &&
-            c.x > stopLine &&
-            c.x < ix -5
-          ) {
-            c.w = true;
-          }
-        }
-
-        if (!c.w) {
-          c.x += c.spd;
-
-          if (c.x > this.W + 20) {
-            c.x = -20;
-          }
-        } else {
-          this.waitCount++;
-        }
-
-      } else {
-        // Side Car
-        const i = c.lane;
+      for (let i = 0; i < 3; i++) {
         const ix = this.ints[i].x;
-        const stopY = this.H/2 - 30;
-
-        if (
-          this.getPhase(i) !== "side" &&
-          c.y >= stopY &&
-          c.y <= this.H/2 - 5
-        ) {
-          c.w = true;
-        }
-        
-        if (!c.w) {
-          c.y += c.spd;
-
-          if (c.y > this.H + 20) {
-            c.y = -20;
-          }
-        } else {
-          this.waitCount++;
+        if (!this.isGreen(i) && c.x < ix + 22 && c.x > ix - 58) {
+          c.w = true; break;
         }
       }
+      if (!c.w) {
+        c.x += c.spd;
+        if (c.x > this.W + 20) { c.x = -20; c.y = this.H/2 + (Math.random()-.5)*10; }
+      } else { this.waitCount++; }
     }
   }
 
-  // Draw
   draw() {
     const { ctx, W, H } = this;
     ctx.clearRect(0, 0, W, H);
 
-    // Main Road
+    // road
     ctx.fillStyle = '#111d2b';
-    ctx.fillRect(0, H/2 - 15, W, 30);
+    ctx.fillRect(0, H/2 - 18, W, 36);
 
-    // Dash Line
-    ctx.setLineDash([10, 8]);
-    ctx.strokeStyle = '#ffffff15';
-    ctx.beginPath();
-    ctx.moveTo(0, H/2);
-    ctx.lineTo(W, H/2);
-    ctx.stroke();
+    // center dash
+    ctx.setLineDash([12, 10]);
+    ctx.strokeStyle = '#ffffff12';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(0, H/2); ctx.lineTo(W, H/2); ctx.stroke();
     ctx.setLineDash([]);
 
-    // Intersections
+    // intersections
     for (let i = 0; i < 3; i++) {
       const x = this.ints[i].x;
-      const phase = this.getPhase(i);
+      const green = this.isGreen(i);
+      const lc = green ? '#34d399' : '#f87171';
 
-      // Side Roads
-      ctx.fillStyle = '#111d2b';
-      ctx.fillRect(x - 6, H/2 - 40, 12, 80);
-
-      // Box
       ctx.fillStyle = '#162030';
       ctx.beginPath();
-      ctx.roundRect(x - 18, H/2 - 18, 36, 36, 6);
+      ctx.roundRect(x - 19, H/2 - 19, 38, 38, 5);
       ctx.fill();
 
-      // Lights (phase-based)
-      if (phase === "main") {
+      ctx.shadowColor = lc;
+      ctx.shadowBlur  = green ? 18 : 10;
+      ctx.fillStyle   = lc;
+      ctx.beginPath(); ctx.arc(x, H/2 - 6, 7, 0, Math.PI*2); ctx.fill();
+      ctx.shadowBlur  = 0;
 
-        // Main = Green
-        ctx.fillStyle = '#34d399';
-        ctx.beginPath();
-        ctx.arc(x, H/2 + 8, 6, 0, Math.PI*2);
-        ctx.fill();
-
-        // Side = Red
-        ctx.fillStyle = '#f87171';
-        ctx.beginPath();
-        ctx.arc(x, H/2 - 6, 5, 0, Math.PI*2);
-        ctx.fill();
-
-        } else {
-        
-        // Main = Red
-        ctx.fillStyle = '#f87171';
-        ctx.beginPath();
-        ctx.arc(x, H/2 + 8, 6, 0, Math.PI*2);
-        ctx.fill();
-        
-        // Side = Green
-        ctx.fillStyle = '#34d399';
-        ctx.beginPath();
-        ctx.arc(x, H/2 - 6, 5, 0, Math.PI*2);
-        ctx.fill();
-      }
-
-      // label
       ctx.fillStyle = '#94a3b8';
-      ctx.font = '8px JetBrains Mono';
+      ctx.font = 'bold 9px JetBrains Mono,monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('I'+(i+1), x, H/2 + 22);
+      ctx.fillText(this.timings[i].toFixed(0)+'s', x, H/2 + 12);
+
+      ctx.fillStyle = '#475569';
+      ctx.font = '7px Syne,sans-serif';
+      ctx.fillText('INT '+(i+1), x, H/2 + 22);
     }
 
-    // Cars
+    // cars
     for (const c of this.cars) {
       const col = c.w ? '#f87171' : this.movColor;
-      ctx.fillStyle = col;
-
-      if (c.type === 'main') {
-        ctx.fillRect(c.x-8, c.y-4, 16, 8);
-      } else {
-        ctx.fillRect(c.x-4, c.y-8, 8, 16);
-      }
+      ctx.shadowColor = col; ctx.shadowBlur = c.w ? 8 : 3;
+      ctx.fillStyle   = col;
+      ctx.beginPath(); ctx.roundRect(c.x-9, c.y-5, 18, 10, 3); ctx.fill();
     }
+    ctx.shadowBlur = 0;
   }
 
-  setTimings(t) {
-    this.timings = t.map(v => Math.max(5, Math.min(60, v)));
-  }
-
-  loop() {
-    this.update();
-    this.draw();
-    requestAnimationFrame(() => this.loop());
-  }
+  setTimings(t) { this.timings = t.map(v => Math.max(5, Math.min(60, v))); }
+  loop() { this.update(); this.draw(); this._raf = requestAnimationFrame(() => this.loop()); }
+  stop() { cancelAnimationFrame(this._raf); }
 }
+
 // ══════════════════════════════════════════════════
 //  CHARTS
 // ══════════════════════════════════════════════════
@@ -450,17 +348,18 @@ function initCharts() {
     type: 'bar',
     data:{
       labels:['Before (fixed)', 'After (optimized)'],
-      datasets:[{ data:[0,0],
+      datasets:[{ data:[100, 100],
         backgroundColor:['rgba(248,113,113,.2)','rgba(52,211,153,.2)'],
         borderColor:['#f87171','#34d399'], borderWidth:2, borderRadius:6
       }]
     },
     options:{
       responsive:true, maintainAspectRatio:false,
+      animation: { duration: 600 },
       plugins:{ legend:{ display:false } },
       scales:{
         x:{ ticks:{ color:'#64748b', font:{ size:9 }}, grid:{ color:'#1e2d42' }},
-        y:{ ticks:{ color:'#64748b', font:{ family:'JetBrains Mono', size:9 }}, grid:{ color:'#1e2d42' }}
+        y:{ ticks:{ color:'#64748b', font:{ family:'JetBrains Mono', size:9 }}, grid:{ color:'#1e2d42' }, beginAtZero: true }
       }
     }
   });
